@@ -42,11 +42,12 @@
  *      How will you ensure different queries invoke different execution paths in your code?
  **/
 
-
+/*
 char* execute_DbOperator(char query[100], int client_socket, struct Db* db_head, Var* var_pool) {
+ 
     struct message* message = malloc(sizeof(message));                                          // for the server to return, not supplied to it.
-    struct ClientContext* cc = malloc(sizeof(ClientContext));   // for the server to return, not supplied to it.
     struct DbOperator *dbreturn = malloc(sizeof(DbOperator));
+    struct ClientContext* cc = malloc(sizeof(ClientContext));   // for the server to return, not supplied to it.
 
     printf("Going into parse command...\n");
     printf("query = %s\n", query);
@@ -54,7 +55,7 @@ char* execute_DbOperator(char query[100], int client_socket, struct Db* db_head,
     printf("client socket = %i\n", client_socket);
     printf("length of query = %li\n", strlen(query));
     fflush(stdout);
-    dbreturn = parse_command(query, message, client_socket, cc, db_head, var_pool);
+    dbreturn = parse_command(query, message, client_socket, cc, db_head, var_pool, batch_mode);
     printf("Back in execute_Dboperator...\n");
     free(query);
     free(message);
@@ -63,6 +64,7 @@ char* execute_DbOperator(char query[100], int client_socket, struct Db* db_head,
     printf("returning to handle client\n");
     return dbreturn;
 }
+*/
 
 /**
  * handle_client(client_socket)
@@ -82,6 +84,12 @@ void handle_client(int client_socket, Db* db_head) {
     var_pool->var_store = malloc(sizeof(int_list*));
     var_pool->var_store = NULL;
 
+    int* batch_mode = malloc(sizeof(int));                     // initializes not in batch mode
+    Batch_list* batch = malloc(sizeof(Batch_list*));
+
+    *batch_mode = 0;
+    batch = NULL;
+
     // Create two messages, one from which to read and one from which to receive
     message send_message;
     message recv_message;
@@ -96,9 +104,9 @@ void handle_client(int client_socket, Db* db_head) {
     // 4. Send response to the request.
     do {
         length = recv(client_socket, &recv_message, sizeof(message), 0);
+        // Server is not supposed to shut down just because client does. 
         if (length < 0) {
-            log_err("Client connection closed!\n");
-            exit(1);
+            wait = 1;
         } else if (length == 0) {
             done = 1;
         } else if (length == 1) {
@@ -114,7 +122,7 @@ void handle_client(int client_socket, Db* db_head) {
 
             // 1. Parse command
             //    Query string is converted into a request for an database operator
-            DbOperator* query = parse_command(recv_message.payload, &send_message, client_socket, client_context, db_head, var_pool);
+            parse_command(recv_message.payload, &send_message, client_socket, client_context, db_head, var_pool, batch_mode, batch);
 
             // 2. Handle request
             //    Corresponding database operator is executed over the query
@@ -208,6 +216,8 @@ int main(void)
         exit(1);
     }
 
+    while (1) {
+
     log_info("Waiting for a connection %d ...\n", server_socket);
 
     struct sockaddr_un remote;
@@ -221,5 +231,6 @@ int main(void)
 
     handle_client(client_socket, db_head);
 
-    return 0;
+    };
+    //return 0;
 }

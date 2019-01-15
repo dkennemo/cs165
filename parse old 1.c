@@ -11,9 +11,6 @@
 // out.
 
 #define _BSD_SOURCE
-#define FALSE 0
-#define TRUE 1
-
 #include <stdio.h>
 #include <fcntl.h>
 #include <string.h>
@@ -26,7 +23,6 @@
 #include "utils.h"
 #include "client_context.h"
 #include <errno.h>
-
 
 extern int errno;
 
@@ -44,60 +40,6 @@ char* next_token(char** tokenizer, message_status* status) {
     }
     return token;
 }
-
-message_status parse_create_idx(char* create_arguments, Db* db_head) {
-    message_status status = OK_DONE;
-    char** create_arguments_index = &create_arguments;
-    char* col_name = next_token(create_arguments_index, &status);
-    char* db_and_table_name = next_token(create_arguments_index, &status);
-    // not enough arguments
-    if (status == INCORRECT_FORMAT) {
-        return status;
-    }
-    // Get the column name free of quotation marks
-    col_name = trim_quotes(col_name);
-    printf("create column full name = %s\n", col_name);
-    // read and chop off last char, which should be a ')'
-    int last_char = strlen(db_and_table_name) - 1;
-    if (db_and_table_name[last_char] != ')') {
-       return INCORRECT_FORMAT;
-    }
-    // replace the ')' with a null terminating character. 
-    db_and_table_name[last_char] = '\0';
-    char* table_name = malloc(100);
-    strcpy(table_name, divide_period(db_and_table_name));
-    printf("table name = %s\n", table_name);
-
-    char* db_name = malloc(100);
-    strcpy(db_name, db_and_table_name);
-    printf("database name = %s\n", db_name);
-
-    Db* db_search = malloc(sizeof(Db));
-    db_search = lookup_db(db_name, db_head);
-    printf("dbsearch name = %s and db_name = %s\n", db_search->name, db_name);
-    if (strcmp(db_search->name,db_name) != 0) {
-        printf("query unsupported. Bad db name\n");
-        fflush(stdout);
-        return QUERY_UNSUPPORTED;
-        }
-    // find the table in the db
-    Table *table_search = malloc(sizeof(Table));
-    table_search = lookup_table(table_name, db_head);
-    printf("table search name = %s in db_name = %s\n", table_name, db_head->name);
-    if (strcmp(table_search->name,table_name) != 0) {
-        printf("query unsupported. Bad table name\n");
-        fflush(stdout);
-        return QUERY_UNSUPPORTED;
-        }
-    else
-    {
-        printf("calling routine to create columns ...\n");
-        Status* ret_status = malloc(sizeof(Status));
-        *ret_status = create_column(table_search, col_name, ret_status);
-        free(ret_status);
-    }
-}
-
 
 message_status parse_create_col(char* create_arguments, Db* db_head) {
     message_status status = OK_DONE;
@@ -183,9 +125,8 @@ message_status parse_create_col(char* create_arguments, Db* db_head) {
  **/
 
 
-// THIS WAS THE ORIGINAL PARSE_SELECT FXN - USE THIS ONE OF THE OTHER DOESN'T WORK!
-/*
-message_status parse_select(char* create_arguments, Db* db_head, Var* var_pool) {
+
+message_status parse_select(char* create_arguments, Db* db_head) {
     message_status status = OK_DONE;
     char** create_arguments_index = &create_arguments;
     char* table_name = next_token(create_arguments_index, &status);
@@ -237,7 +178,7 @@ message_status parse_select(char* create_arguments, Db* db_head, Var* var_pool) 
     }
     return OK_DONE;
 }
-*/
+
 
 message_status parse_create_tbl(char* create_arguments, Db* db_head) {
     message_status status = OK_DONE;
@@ -269,10 +210,10 @@ message_status parse_create_tbl(char* create_arguments, Db* db_head) {
     Db* db_search = malloc(sizeof(Db));
     db_search = lookup_db(db_name, db_head);
     printf("dbsearch name = %s and db_name = %s\n", db_search->name, db_name);
-    if (!db_search || !db_search->name) {
-        printf("Db %s does not exist. Creating it.\n", db_name);
-        Var* var_pool = malloc(sizeof(Var));
-        db_search = create_db(db_name, db_head, var_pool);
+    if (strcmp(db_search->name,db_name) != 0) {
+        printf("query unsupported. Bad db name\n");
+        fflush(stdout);
+        return QUERY_UNSUPPORTED;
         }
     // turn the string column count into an integer, and check that the input is valid.
     int column_cnt = atoi(col_cnt);
@@ -280,10 +221,7 @@ message_status parse_create_tbl(char* create_arguments, Db* db_head) {
         return INCORRECT_FORMAT;
     }
     Table* create_status = malloc(sizeof(Table));
-    printf("going into lookup_table with table name %s and db_search %s\n", table_name, db_search);
-    bool found = malloc(sizeof(bool)); 
     create_status = lookup_table(table_name, db_search);
-
     if (create_status == NULL) {
         printf("Table doesn't exist, so creating it now\n");
         Status* result = malloc(sizeof(Status));
@@ -294,7 +232,6 @@ message_status parse_create_tbl(char* create_arguments, Db* db_head) {
     }
     return OK_DONE;
 }
-
 
 /*
 void shutdown(Db* db_head) {
@@ -379,8 +316,7 @@ void print_db(Db* db_head) {
                         int col_number = 1;
                         do
                         {
-                            printf("    Column %s (%i) addr: %p:\n", current_col->name, col_number++, (void*)current_col);
-
+                            printf("    Column %s (%i):\n", current_col->name, col_number++);
                             if (current_col->data == NULL) printf("      No data in this column.\n");
                             else {
                                 printf("    ");
@@ -409,7 +345,7 @@ void print_db(Db* db_head) {
 
 message_status parse_lookup_col(char* lookup_arguments, Db* curr_db) {
     char *token;
-    //message_status mes_status;
+    message_status mes_status;
     token = strsep(&lookup_arguments, ",");
     if (token == NULL) {
         return INCORRECT_FORMAT;                    
@@ -422,16 +358,14 @@ message_status parse_lookup_col(char* lookup_arguments, Db* curr_db) {
         }
     col_name[last_char] = '\0';
     printf("Col to lookup is %s\n", col_name);
-    Table* table = curr_db->tables;
-    lookup_column(col_name, table);
-    // Note: this will only handle the case of ONE table. If you have two tables, it won't traverse; revise.
+    lookup_column(col_name, curr_db);
     return OK_DONE;
     }
 }
 
 message_status parse_lookup_tbl(char* lookup_arguments, Db* curr_db) {
     char *token;
-    //message_status mes_status;
+    message_status mes_status;
     token = strsep(&lookup_arguments, ",");
     if (token == NULL) {
         return INCORRECT_FORMAT;                    
@@ -444,6 +378,7 @@ message_status parse_lookup_tbl(char* lookup_arguments, Db* curr_db) {
         }
         tbl_name[last_char] = '\0';
         printf("Tbl name to lookup is %s\n", tbl_name);
+
         lookup_table(tbl_name, curr_db);
         return OK_DONE;
         }
@@ -456,7 +391,7 @@ message_status parse_lookup_tbl(char* lookup_arguments, Db* curr_db) {
 
 message_status parse_lookup_db(char* lookup_arguments, Db* db_head) {
     char *token;
-    // message_status mes_status;
+    message_status mes_status;
     token = strsep(&lookup_arguments, ",");
     if (token == NULL) {
         return INCORRECT_FORMAT;                    
@@ -514,7 +449,7 @@ message_status parse_lookup(char* create_arguments, Db* db_head) {
 
 message_status parse_create_db(char* create_arguments, Db* db_head, Var* var_pool) {
     char *token;
-    // Status mes_status;
+    Status mes_status;
     // message_status mes_status;
     // struct Db* db;
     // Status stat;
@@ -538,7 +473,7 @@ message_status parse_create_db(char* create_arguments, Db* db_head, Var* var_poo
         //token = strsep(&create_arguments, ",");
         //if (token != NULL) {
         //    return INCORRECT_FORMAT;
-        create_db(db_name, db_head, var_pool);
+        mes_status = create_db(db_name, db_head, var_pool);
         return OK_DONE;
     }
 }
@@ -569,9 +504,6 @@ message_status parse_create(char* create_arguments, Db* db_head, Var* var_pool) 
             } else if (strcmp(token, "tbl") == 0) {
                 printf("Been asked to create a tbl\n");
                 mes_status = parse_create_tbl(tokenizer_copy, db_head);
-            } else if (strcmp(token, "idx") == 0) {
-                printf("Been asked to create an index\n");
-                mes_status = parse_create_idx(tokenizer_copy, db_head);
             } else if (strcmp(token, "col") == 0) {
                 printf("Been asked to create a col\n");
                 mes_status = parse_create_col(tokenizer_copy, db_head);
@@ -591,7 +523,7 @@ message_status parse_create(char* create_arguments, Db* db_head, Var* var_pool) 
  * then passes these arguments to a database function to insert a row.
  **/
 
-DbOperator* load_db(char* dbFile, Db* db_head, Var* var_pool, int client_socket, struct ClientContext* context, int* batch_mode, Batch_list* batch) {
+DbOperator* load_db(char* dbFile, Db* db_head, Var* var_pool, int client_socket, struct ClientContext* context) {
     char* query_command = malloc(100);
     char* query_command_backup = query_command;
     char* start_counter;
@@ -611,9 +543,9 @@ DbOperator* load_db(char* dbFile, Db* db_head, Var* var_pool, int client_socket,
     // open the file for reading and writing
     FILE* database = fopen(dbFile, "r");
     if (database == NULL) {
-        //int errnum = errno;
-        //printf(stderr, "Error opening file: %s\n", strerror(errnum));
-        return NULL;
+        int errnum = errno;
+        printf(stderr, "Error opening file: %s\n", strerror(errnum));
+        return(1);
     };
 
     // There are two styles of files that can be loaded, .csv and .dsl. They are treated differently.
@@ -639,28 +571,33 @@ DbOperator* load_db(char* dbFile, Db* db_head, Var* var_pool, int client_socket,
         while (!end_of_line) {
             linecounter = strchr(query_command, '.');
             *linecounter = '\0';
-            strcpy(roster->db_name, query_command);
-            printf("db name is %s  ", roster->db_name);
+            strcpy(db_name, query_command);
+            strcpy(roster->db_name, db_name);
+            printf("db name is %s\n", roster->db_name);
             query_command = linecounter + 1;
             linecounter = strchr(query_command, '.');
             start_counter = query_command;
             *linecounter = '\0';
             query_command = (linecounter + 1);
-            strcpy(roster->tbl_name, start_counter);
-            printf("table name is %s  ", roster->tbl_name);
+            strcpy(tbl_name, start_counter);
+            strcpy(roster->tbl_name, tbl_name);
+            printf("table name is %s\n", roster->tbl_name);
+                        
             linecounter = strchr(query_command, ',');
-            col_name[strlen(col_name)] = '\0';
             if (linecounter == NULL)
             {
-                strcpy(roster->col_name, query_command);
+                strcpy(col_name, query_command);
+                strcpy(roster->col_name, col_name);
                 printf("col name is %s\n", roster->col_name);
+//              Status status = insert_row(roster->db_name, Db* db_head, roster->table_name, roster->col_number, struct int_list* list, 
+//                  Status *ret_status)
                 end_of_line = 1;                    // signals this is the last item in the line to process.
                 roster->next = NULL;
             }
             else {
                 *linecounter = '\0';
-                query_command = trim_whitespace(query_command);
-                strcpy(roster->col_name, query_command);
+                strcpy(col_name, query_command);
+                strcpy(roster->col_name, col_name);
                 printf("col name is %s\n", roster->col_name);
                 query_command = linecounter + 1;
                 DbTblCol* new_roster = malloc(sizeof(DbTblCol));
@@ -668,56 +605,156 @@ DbOperator* load_db(char* dbFile, Db* db_head, Var* var_pool, int client_socket,
                 roster = new_roster;
             };
         };
-        roster = roster_start;                                      // reset roster back to beginning of roster list
+        // create db, re-iterate through roster and create table and columns
+        Status mes_status = create_db(roster->db_name, db_head, var_pool);
+        int num_columns = 0;
 
-        Table *insert_table = malloc(sizeof(Table*));                // create an insert table pointer object
-        insert_table = lookup_table(roster->tbl_name, db_head);   // look up the table name in the roster
-        query_command = query_command_backup;                        // point the query command pointer to the original (since it's moved during the line scan process)
-        int insert_val;                                             // this is the integer representation of the numbers read off the csv file
+        // Count columns by traversing roster nodes.
+        roster = roster_start;
+        while (roster) {
+            num_columns++;
+            roster = roster->next;
+        };
 
-        if (!feof(database)) do                                      // while eof hasn't been reached...
+        // Create table by traversing roster nodes.
+        Status* ret_status = malloc(sizeof(Status));
+        roster = roster_start;
+        printf("roster->tbl_name to pass is %s\n", roster->tbl_name);
+        mes_status = create_table(db_head, roster->tbl_name, num_columns, ret_status);
+        free(ret_status);
+
+        // For each column, find the right table and create a new column
+        roster = roster_start;
+        int_list* current = malloc(sizeof(int_list));
+        Table *table_search = malloc(sizeof(Table));
+        for (int y = 0; y < num_columns; y++) {
+            table_search = lookup_table(roster->tbl_name, db_head);
+            *ret_status = create_column(table_search, roster->col_name, ret_status);    
+            roster = roster->next;
+        }
+        char data_item[10];
+        int data_item_int;
+        Table* table_search_backup = table_search;
+        Column* col_current = malloc(sizeof(Column*));       
+        col_current = table_search->columns;
+        col_current->data = table_search->columns->data;
+        Column* col_start = table_search->columns;
+        col_start->data = table_search->columns->data;
+        int_list* latest_item = malloc(sizeof(int_list));
+
+
+
+        if (!feof(database)) do 
         {
+            //read a new line from the file, place in query_command after some pre-processing
+            int_list* latest_item = malloc(sizeof(int_list*));
+            int_list* next = malloc(sizeof(int_list*));
+            next = NULL;
+            latest_item->next = next;
+            latest_item = NULL;
+            query_command = query_command_backup;
             *query_command = '\0';
-            fgets(query_command, 100, database);                    // read a new line from the file, place in query_command after some pre-processing
-            query_command = trim_whitespace(query_command);         // trim any excess whitespace            
-            if (*query_command == '\0') break;
+            fgets(query_command, 100, database);
+            col_current = col_start;
+            query_command = trim_whitespace(query_command);
             printf("new line: %s\n", query_command);
-            roster = roster_start;                                  // go to the beginning of the roster of db/table/column inserts
-            Column* insert_column = insert_table->columns;          // Now create an insert column pointer and point it to insret_table's first column
-            do {                                                     // begin loop
-                int_list* start = malloc(sizeof(int_list*));          // Now create an int_list node pointer called start
-                query_command[strcspn(query_command, ",")] = '\0';      // change the comma to a null terminator
-                //char* next_char = strsep(query_command, '\0') + 1;
-                insert_val = atoi(query_command);                       // collect the val preceding the null terminator and change to an int, store in insert_val
-                printf("v: %i\n", insert_val);                          // display the value just read
-                query_command += strcspn(query_command, ",") + 1;       // move the query command pointer to just after the null terminator
-                int_list* new_int = malloc(sizeof(int_list));           // now create a new int_list object to store it in
-                new_int->item = insert_val;                             // store the value
-                printf("going to lookup column fxn with %s and %p parms\n", roster->col_name, insert_table);
-                fflush(stdout);
-                insert_column = lookup_column(roster->col_name, insert_table);
-                if (insert_column->data == NULL)                        // is column data empty? If so, point it to the int_list just created
-                    insert_column->data = new_int;
-                else 
-                    {
-                        int_list* search_list = insert_column->data;
-                        while (search_list->next != NULL) 
-                            search_list = search_list->next;
-                        search_list->next = new_int;
+            // reset roster pointer to front of list.
+            roster = roster_start;
+            // only process further if roster is non-empty AND length of query command > 0
+            while (roster && strlen(query_command) > 0)
+            {
+                // get the first item in the line, convert to an int and place in data_item_int
+                linecounter = strchr(query_command, ',');
+                if (linecounter) *linecounter = '\0';
+                start_counter = query_command;
+                strcpy(data_item, start_counter);
+                data_item_int = atoi(data_item);
+                printf("data item = %i \n", data_item_int);
+                // create a new int_list called current, point it to the list associated with each roster.
+                int_list* current = roster->items;
+
+                printf("roster = %i\n", roster);
+                //printf("items = %i\n", current);
+                // is the current pointer NULL (that is, is the list of items for that roster item empty?)
+                if (!current) {
+                    // if yes, create a new int_list called new_item
+                    int_list* new_item = malloc(sizeof(int_list));
+                    // set the COLUMN pointer to the new item.
+                    printf("col_current->data = %i\n", col_current->data);
+                    latest_item = col_current->data;
+                    latest_item->next = col_current->data->next;
+                    while (latest_item->next != NULL)
+                        latest_item = latest_item->next;
+                    latest_item = new_item;
+                    // store the data_item_int in the new item (to which the column pointer points)
+                    new_item->item = data_item_int;
+                    // ... and set the next pointer of the int list to null.
+                    new_item->next = NULL;
+                    // go to the next roster
+                    roster = roster->next;
+                    col_current = col_current->next_col;
+                }
+                else
+                while (current != NULL) {
+                    // if no, then there's a list to traverse.
+                    // is the indicated next int list is NULL (that is, if this is the last item in the list...)
+                    if (current->next == NULL) {
+                        // create a new item
+                        int_list* new_item = malloc(sizeof(int_list));
+                        // place the data_item_int in this new item
+                        latest_item = col_current->data;
+                        while (latest_item->next != NULL)
+                            latest_item = latest_item->next;
+                        latest_item = new_item;
+                        // point the current int_list next to where the new item is to be found
+                        current->next = new_item;
+                        // ... and set the new item next to null.
+                        new_item->next = NULL;
+                        // go to the next roster
+                        roster = roster->next;
+                        col_current = col_current->next_col;
                     }
-                roster = roster->next;
-                } while (strcspn(query_command, ",") != 0);
-        query_command = query_command_backup;
+                    else {
+                        // otherwise, traverse the list.
+                        current = current->next;
+                  };
+
+                //roster = roster->next;
+                };
+            query_command = linecounter + 1;
+
+            }
         }
         while (!feof(database));
+/*        roster = roster_start;
+        printf("starting with roster_start = %s.%s.%s\n", roster->db_name, roster->tbl_name, roster->col_name);
+        Column* current_col = table_search->columns;
+        printf("starting with column %s\n", table_search->columns->name);
+        while (roster) {
+            printf("looking at col %s\n", current_col->name);
+            current_col->data = malloc(sizeof(int_list*));
+            current_col->data = roster->items;
+            printf("excerpt of column data: %i", current_col->data->item);
+            int_list* sample = current_col->data->next;
+            printf(" %i ...", sample->item);
+            if (roster->next) {
+                current_col->next_col->data = malloc(sizeof(int_list*)); 
+                current_col->next_col->data = roster->next->items;
+            }
+            else
+                current_col->next_col = NULL;
+            current_col = current_col->next_col;
+            roster = roster->next;
+        };
+*/
     }
     else if (strncmp(filetype, "dsl", 3) == 0)
     {
-        //DbOperator* x;
+        DbOperator* x;
         if (!feof(database)) do
         {
             fgets(query_command, 100, database);
-            parse_command(query_command, send_message, client_socket, context, db_head, var_pool, batch_mode, batch);
+            x = parse_command(query_command, send_message, client_socket, context, db_head, var_pool);
         }
         while (!feof(database));
     };
@@ -745,73 +782,107 @@ DbOperator* load_db(char* dbFile, Db* db_head, Var* var_pool, int client_socket,
 }
 
 DbOperator* parse_insert(char* query_command, message* send_message, Db* db_head) {
-    //unsigned int columns_inserted = 0;
-    char* token = malloc(100);
-    token[0] = NULL;
+    unsigned int columns_inserted = 0;
+    char* token = NULL;
     char* db_name = malloc(100);
     db_name[0] = '\0';
     char* table_name = malloc(100);
     char** command_index;
-    int last_char;
-    char* db_insert = malloc(100);
-    db_insert[0] = '\0';
-    int insert_val = malloc(sizeof(int));
-
-    // pre-process query command to exclude prens
+    // Db *db = NULL;  // assume null for now though will have ot pass db here to parse insert ultimately
+    // check for leading '('
     if (query_command[0] == '(') {
         query_command++;
         command_index = &query_command;
         // parse table input
         db_name = next_token(command_index, &send_message->status);
-        last_char = strlen(db_name);
+        int last_char = strlen(db_name);
         db_name[last_char] = '\0';
-
-        // get db name and table name
         strcpy(table_name, divide_period(db_name));
         printf("divided db and table = %s and %s\n", db_name, table_name);
-
-        //
-        //query_command += last_char + 2;
-        printf("start of variable list = %s", query_command);
-        //
-
-        // establish table pointer and lookup table listed
-        Table* insert_table = malloc(sizeof(Table*));               // declare a table pointer called insert_table 
-        bool found = malloc(sizeof(bool));
-        insert_table = lookup_table(table_name, db_head);    // lookup the table by name and place the pointer in insert_table    
-
-        // check to make sure table actually exists, exit if no.
-        if (insert_table == NULL) {
+        //if (send_message->status == INCORRECT_FORMAT) {
+        //    return NULL;
+        //}
+        // lookup the table and make sure it exists. 
+        //Table* insert_table = malloc(sizeof(Table));
+        Table* insert_table = malloc(sizeof(Table));
+        insert_table = lookup_table(table_name, db_head);
+        if (strcmp(insert_table->name, table_name) != 0) {
             printf("couldn't find table so exiting out\n");
             return NULL;
         }
 
-        Column* insert_column = insert_table->columns;              // Now create an insert column pointer and point it to insret_table's first column 
+        // make insert operator. 
+        DbOperator* dbo = malloc(sizeof(DbOperator));
+        dbo->type = INSERT;
+        // dbo->operator_fields.insert_operator.table = insert_table;
+        // dbo->operator_fields.insert_operator.values = malloc(sizeof(int) * insert_table->col_count);
+        // parse inputs until we reach the end. Turn each given string into an integer. 
 
-        int_list* start = malloc(sizeof(int_list*));                // Now create an int_list node pointer called start
-        while (strcspn(query_command, ",") != 0)                    // as long as there is a comma to be found in query command...
+        // create an array of insert values
+
+        int_list* start = malloc(sizeof(int_list));
+        int_list* current = start;
+        int_list* prev = NULL;
+        token = strsep(command_index, ",");
+        int insert_val = atoi(token);
+        //printf("now inserting %i\n", insert_val);
+        current->item = insert_val;
+        current->deleted_flag = 0;
+        current->next = malloc(sizeof(int_list)); // * or just int_list?
+        current->next = NULL;
+        while ((token = strsep(command_index, ",")) != NULL) {
+            insert_val = atoi(token);
+            //printf("now inserting %i\n", insert_val);
+            current->next = malloc(sizeof(int_list)); // * or just int_list?
+            prev = current;
+            current = current->next;
+            current->item = insert_val;
+            current->deleted_flag = 0;
+            current->next = malloc(sizeof(int_list));
+            current->next = NULL;
+        }
+        prev->next = NULL;
+        Column* current_column = malloc(sizeof(Column));
+        current_column->next_col = malloc(sizeof(Column*));
+        current_column = insert_table->columns;
+        int modify_column = insert_val;
+        printf("Adding to column %i\n", modify_column);
+        //free(current);
+        for(int x = 1; x < modify_column; x++)
         {
+            printf("hopping to col %i\n", x);
+            if (current_column->next_col == NULL) {
+                printf("out of columns - exiting\n");
+                return NULL; }
+            current_column = current_column->next_col;
+        }
+        if (current_column->data == NULL) {
+            printf("column is empty; setting it equal to new one just created\n");
+            current_column->data = start;
+            printf("set.\n");
+        } 
+        else {
+            printf("traversing col to end...\n");
+            do {
+                current_column->data = current_column->data->next;
+                printf("hop over item %i...", current_column->data->item);
+            }
+            while (current_column->data->next != NULL);
+            printf("found end of column, now appending by linking...\n");
+            current_column->data->next = start;
+        }
 
-            query_command[strcspn(query_command, ",")] = '\0';      // change the comma to a null terminator
-            //char* next_char = strsep(query_command, '\0') + 1;
-            insert_val = atoi(query_command);                       // collect the val preceding the null terminator and change to an int, store in insert_val
-            query_command += strcspn(query_command, ",") + 1;       // move the query command pointer to just after the null terminator
-            printf("interpreted atoi result as %i\n", insert_val);  // display the value just read
-            int_list* new_int = malloc(sizeof(int_list));           // now create a new int_list object to store it in
-            new_int->item = insert_val;                             // store the value
-            if (insert_column->data == NULL)                        // is column data empty? If so, point it to the int_list just created
-                insert_column->data = new_int;
-            else {
-                int_list* search_list = insert_column->data;
-                while (search_list->next != NULL) {
-                    search_list = search_list->next;
-                }
-                search_list->next = new_int;
-            };
-        insert_column = insert_column->next_col;
-        };
+        // check that we received the correct number of input values
+        // if (columns_inserted != insert_table->col_count) {
+        //    printf("wrong number of columns\n");
+        //    send_message->status = INCORRECT_FORMAT;
+        //    free (dbo);
+        //    return NULL; 
+        return dbo;
+    } else {
+        send_message->status = UNKNOWN_COMMAND;
+        return NULL;
     }
-return NULL;
 }
 
 
@@ -826,401 +897,132 @@ return NULL;
  *      How would you add a new command type to parse? 
  *      What if such command requires multiple arguments?
  **/
-
-int_list* parse_fetch(char* query_command, char* handle, Db* db_head, Var* var_pool) {
-    char* period_pointer = strchr(query_command, '.');
-    char* comma_pointer;
-    char* pren_pointer;
-    char* db_name = query_command;
-    if (period_pointer != NULL) 
-    {
-        *period_pointer = '\0';
-        query_command = ++period_pointer;
-    };
-    printf("tracking down db: %s\n", db_name);
-    period_pointer = strchr(query_command, '.');
-    char* table_name = query_command;
-    if (period_pointer != NULL) 
-    {
-        *period_pointer = '\0';
-        query_command = ++period_pointer;
-    };
-    printf("tracking down table: %s\n", table_name);
-    comma_pointer = strchr(query_command, ',');
-    char* column_name = query_command;
-    if (comma_pointer != NULL) 
-    {
-        *comma_pointer = '\0';
-        query_command = ++comma_pointer;
-    };
-    comma_pointer = strchr(query_command, ')');
-    char* var_name = query_command;
-    if (comma_pointer != NULL) 
-    {
-        *comma_pointer = '\0';
-        query_command = ++comma_pointer;
-    };
-    printf("variable name for fetch indexes = %s\n", var_name);
-    pren_pointer = strchr(query_command, ')');
-    printf("Assigning to handle: %s\n", handle);
-    int_list* fetch_list = fetch_row(db_name, table_name, column_name, var_name, db_head, handle, var_pool);
-    return fetch_list;
-}
-
-
-int_list* parse_select(char* query_command, char* handle, Db* db_head, Var* var_pool) {
-    char* period_pointer = strchr(query_command, '.');
-    char* comma_pointer;
-    char* pren_pointer;
-    char* db_name = query_command;
-    int low_value, high_value;
-    if (period_pointer != NULL) 
-    {
-        *period_pointer = '\0';
-        query_command = ++period_pointer;
-    };
-    printf("tracking down db: %s\n", db_name);
-    period_pointer = strchr(query_command, '.');
-    char* table_name = query_command;
-    if (period_pointer != NULL) 
-    {
-        *period_pointer = '\0';
-        query_command = ++period_pointer;
-    };
-    printf("tracking down table: %s\n", table_name);
-    comma_pointer = strchr(query_command, ',');
-    char* column_name = query_command;
-    if (comma_pointer != NULL) 
-    {
-        *comma_pointer = '\0';
-        query_command = ++comma_pointer;
-    };
-    comma_pointer = strchr(query_command, ',');
-    char* low_string = query_command;
-    if (comma_pointer != NULL) 
-    {
-        *comma_pointer = '\0';
-        if (strcmp(low_string, "null") == 0)
-            low_value = -2147483647;
-        else
-            low_value = atoi(low_string);
-        query_command = ++comma_pointer;
-    };
-    printf("low value = %s\n", low_string);
-    pren_pointer = strchr(query_command, ')');
-    char* high_string = query_command;
-    if (pren_pointer != NULL) 
-    {
-        *pren_pointer = '\0';
-        if (strcmp(high_string, "null") == 0)
-            high_value = 2147483647;
-        else
-            high_value = atoi(high_string);
-    };
-    printf("high_value = %s\n", high_string);
-    printf("Assigning to handle: %s\n", handle);
-    int_list* selection = select_row(db_name, table_name, column_name, low_value, high_value, db_head, handle, var_pool);
-    return selection;
-}
-
-DbOperator* parse_command(char* query_command, message* send_message, int client_socket, ClientContext* context, Db* db_head, Var* var_pool, int* batch_mode, Batch_list* batch) 
-{
-    int_list* result = malloc(sizeof(int_list));
-    DbOperator *dbo = malloc(sizeof(DbOperator)); 
-    //printf("query is: %s\n", query_command);
-
-    // if leads with -- is a comment and should be ignored
-    if (strncmp(query_command, "--", 2) == 0) 
+DbOperator* parse_command(char* query_command, message* send_message, int client_socket, ClientContext* context, Db* db_head, Var* var_pool) {
+    DbOperator *dbo = malloc(sizeof(DbOperator)); // calloc?
+    printf("query is: %s\n", query_command);
+    if (strncmp(query_command, "--", 2) == 0) {
+        //printf("This is a comment - nothing to do here!\n");
+        //send_message->status = OK_DONE;
+        // The -- signifies a comment line, no operator needed.  
         return NULL;
-
-    if (*batch_mode == 1)
-    {
-        Batch_list* new_batch;
-        //Batch_list* batch;
-        if (batch == NULL) {
-            Batch_list* new_batch = malloc(sizeof(Batch_list));
-            strcpy(new_batch->query, query_command);
-            new_batch->next = NULL;
-            batch = new_batch;
-            printf("new batch list - single item: %s", batch->query);
-        } else {
-            Batch_list* batch_working_copy = batch;
-            printf("traversing batch list: \n");
-            while (batch_working_copy != NULL) {
-                printf("batch item: %s\n", batch_working_copy->query);
-                batch_working_copy = batch_working_copy->next;
-            };
-            printf("newest item: %s\n", new_batch->query);
-            batch_working_copy = new_batch;
-        };
-    } 
-    else if (*batch_mode == 1 && batch != NULL && (strncmp(query_command, "batch_execute()", 15) == 0)) {
-        *batch_mode = 0;
-        while(batch != NULL) {
-            parse_command(batch->query, send_message, client_socket, context, db_head, var_pool, batch_mode, batch);
-            Batch_list* batch_old = batch;
-            batch = batch->next;
-            free(batch_old);
-        };
     }
-    else {
 
-    // look for an equals sign, indicating a handle
     char *equals_pointer = strchr(query_command, '=');
     char *handle = query_command;
-    if (equals_pointer != NULL) 
-    {
+    if (equals_pointer != NULL) {
         // handle exists, store here. 
         *equals_pointer = '\0';
         cs165_log(stdout, "FILE HANDLE: %s\n", handle);
         query_command = ++equals_pointer;
 
-    } 
-    else 
+    } else {
         handle = NULL;
-
-    // prep query command for passing to other routines for further parsing and execution.
-    query_command = trim_whitespace(query_command);
-    if (!handle) {
-        if (strncmp(query_command, "create", 6) == 0) 
-        {
-            query_command += 6;
-            printf("create command invoked\n");
-            //send_message->status = parse_create(query_command, db_head, var_pool);
-            parse_create(query_command, db_head, var_pool);
-            dbo = malloc(sizeof(DbOperator));
-            dbo->type = CREATE;
-        }; 
-        if (strncmp(query_command, "relational_insert", 17) == 0) 
-        {
-            query_command += 17;
-            parse_insert(query_command, send_message, db_head);
-        }; 
-        if (strncmp(query_command, "load", 4) == 0) 
-        {
-            query_command += 4;
-            dbo = load_db(query_command, db_head, var_pool, client_socket, context, batch_mode, batch);
-        }; 
-        if (strncmp(query_command, "lookup", 6) == 0) 
-        {
-            query_command += 6;
-            message_status mes = parse_lookup(query_command, db_head);
-            //dbo->type = LOOKUP;
-        }; 
-        if (strncmp(query_command, "print_db", 8) == 0) 
-        {
-            query_command += 8;
-            print_db(db_head);
-        }; 
-        if (strncmp(query_command, "print", 5) == 0) 
-        {
-            query_command += 5;
-            print_var(var_pool, query_command);
-        }; 
-        if (strncmp(query_command, "batch_queries()", 15) == 0)
-            {
-                printf("Requested to enter batch mode\n");
-                if (*batch_mode == 1) {
-                    printf("Already in batch mode - cannot re-enter until batch_execute has occurred.\n");
-                }
-                else {
-                    printf("Entering batch mode. No further activity - except shutdown - will occur until batch_execute occurs.\n");
-                    *batch_mode = 1;
-                    Batch_list* batch = malloc(sizeof(Batch_list));
-                    Batch_list* batch_start = batch;
-                }
-
-            }
-
     };
 
-    if (handle) 
-    {
+    cs165_log(stdout, "QUERY: %s\n", query_command);
+
+    // by default, set the status to acknowledge receipt of command,
+    //   indication to client to now wait for the response from the server.
+    //   Note, some commands might want to relay a different status back to the client.
+    // send_message->status = OK_WAIT_FOR_RESPONSE;
+    query_command = trim_whitespace(query_command);
+    // check what command is given. 
+    //printf("is there a handle?\n");
+    if (handle != NULL) {
+        //printf("YES, there's a handle. It is %s\n", handle);
+        //query_command += strlen(handle) + 1;
         char *open_pren = strchr(query_command, '(');       // find open pren
-        if (open_pren == NULL) 
-        {
+        if (open_pren == NULL) {
             dbo->type = NA;
             printf("No valid command entered.\n");
             return dbo;
         }
-        else 
-        {
+        else {
             *open_pren = '\0';
-            //printf("testing: is join in command %s...\n", query_command);
-            if (strncmp(query_command, "join", 4) == 0) 
-            {
+            printf("now, what to make of command %s...\n", query_command);
+            if (strncmp(query_command, "join", 4) == 0) {
                 query_command += 5;         // skip over join leters + open pren
                 printf("PLACEHOLDER: Insert JOIN logic here\n");
-            };
-            //printf("testing: is select in command %s...\n", query_command);
-            if (strncmp(query_command, "select", 6) == 0) 
-            {
+            } else if (strncmp(query_command, "select", 6) == 0) {
                 query_command += 7;         // skip over select letters + open pren
-                result = parse_select(query_command, handle, db_head, var_pool);
-                declare_handle(handle, result, var_pool);
-            };
-            if (strncmp(query_command, "fetch", 5) == 0) 
-            {
+                char* period_pointer = strchr(query_command, '.');
+                char* comma_pointer;
+                char* pren_pointer;
+                char* db_name = query_command;
+                int low_value, high_value;
+                if (period_pointer != NULL) {
+                    *period_pointer = '\0';
+                    query_command = ++period_pointer;
+                };
+                printf("tracking down db: %s\n", db_name);
+                period_pointer = strchr(query_command, '.');
+                char* table_name = query_command;
+                if (period_pointer != NULL) {
+                    *period_pointer = '\0';
+                    query_command = ++period_pointer;
+                };
+                printf("tracking down table: %s\n", table_name);
+                comma_pointer = strchr(query_command, ',');
+                char* column_name = query_command;
+                if (comma_pointer != NULL) {
+                    *comma_pointer = '\0';
+                    query_command = ++comma_pointer;
+                };
+                comma_pointer = strchr(query_command, ',');
+                char* low_string = query_command;
+                if (comma_pointer != NULL) {
+                    *comma_pointer = '\0';
+                    low_value = atoi(low_string);
+                    query_command = ++comma_pointer;
+                };
+                printf("low value = %s\n", low_string);
+                pren_pointer = strchr(query_command, ')');
+                char* high_string = query_command;
+                if (pren_pointer != NULL) {
+                    *pren_pointer = '\0';
+                    high_value = atoi(high_string);
+                };
+                printf("high_value = %s\n", high_string);
+                select_row(db_name, table_name, column_name, low_value, high_value, db_head, handle, var_pool);
+                printf("completed select operator\n");
+            } else if (strncmp(query_command, "fetch", 5) == 0) {
                 query_command += 6;         // skip over fetch letters + open pren
-                result = parse_fetch(query_command, handle, db_head, var_pool);
-                declare_handle(handle, result, var_pool);
-            }; 
-            if (strncmp(query_command, "min", 3) == 0) 
-            {
+                printf("PLACEHOLDER: Insert FETCH logic here\n");
+            }
+        }
+    } else {
+            printf("No handle here.\n");
+            if (strncmp(query_command, "create", 6) == 0) {
+                query_command += 6;
+                //send_message->status = parse_create(query_command, db_head, var_pool);
+                parse_create(query_command, db_head, var_pool);
+                dbo = malloc(sizeof(DbOperator));
+                dbo->type = CREATE;
+            } else if (strncmp(query_command, "relational_insert", 17) == 0) {
+                query_command += 17;
+                dbo = parse_insert(query_command, send_message, db_head);
+            } else if (strncmp(query_command, "load", 4) == 0) {
                 query_command += 4;
-                printf("min query command is now: %s\n", query_command);
-                char* comma_pointer = strchr(query_command, ",");
-                if (comma_pointer == NULL) 
-                {
-                    printf("no comma detected\n");
-                    char* close_pren = strchr(query_command, ')');
-                    if (close_pren == NULL) 
-                    {
-                        printf("No close pren - Improper format for min command\n");
-                        dbo->type = NA;
-                        return dbo;
-                    }
-                    else 
-                    {
-                        printf("now analyzing min\n");
-                        int_list* result = malloc(sizeof(int_list));
-                        result->item = find_min(query_command, 0, db_head, var_pool);
-                        result->next = NULL;
-                        declare_handle(handle, result, var_pool);
-                        printf("min is %i\n", result->item);
-                    };
-                }
-                else 
-                {
-                    char* close_pren = strchr(query_command, ")");
-                    if (close_pren == NULL) 
-                    {
-                        printf("No close pren - Improper format for min command\n");
-                        dbo->type = NA;
-                        return dbo;
-                    };
-                    printf("now analyzing min\n");
-                    int_list* result = malloc(sizeof(int_list));
-                    result->item = find_min(query_command, comma_pointer + 1, db_head, var_pool);
-                    declare_handle(handle, result, var_pool);
-                    printf("min is %i\n", result->item);
-                };
-            }; 
-            if (strncmp(query_command, "max", 3) == 0) 
-            {
-                query_command += 4;
-                char* comma_pointer = strchr(query_command, ',');
-                if (comma_pointer == NULL) 
-                {
-                    char* close_pren = strchr(query_command, ')');
-                    if (close_pren == NULL) 
-                    {
-                        printf("Improper format for max command\n");
-                        dbo->type = NA;
-                        return dbo;
-                    }
-                    else 
-                    {
-                        int_list* result = malloc(sizeof(int_list));
-                        result->item = find_max(query_command, NULL, db_head, var_pool);
-                        result->next = NULL;
-                        declare_handle(handle, result, var_pool);
-                    };
-                }
-                else 
-                {
-                    char* close_pren = strchr(query_command, ')');
-                    if (close_pren == NULL) 
-                    {
-                        printf("Improper format for max command\n");
-                        dbo->type = NA;
-                        return dbo;
-                    };
-                    int_list* result = malloc(sizeof(int_list));
-                    result->item = find_max(query_command, comma_pointer + 1, db_head, var_pool);
-                    declare_handle(handle, result, var_pool);
-                    printf("MAX is %i\n", result->item);
-                };
-            };
-            if (strncmp(query_command, "sum", 3) == 0) 
-            {
-                query_command += 4;
-                char* close_pren = strchr(query_command, ')');
-                if (close_pren == NULL) 
-                {
-                    printf("Improper format for sum command\n");
-                    dbo->type = NA;
+                dbo = load_db(query_command, db_head, var_pool, client_socket, context);
+            } else if (strncmp(query_command, "lookup", 6) == 0) {
+                query_command += 6;
+                message_status mes = parse_lookup(query_command, db_head);
+                //dbo->type = LOOKUP;
+            } else if (strncmp(query_command, "print_db", 8) == 0) {
+                query_command += 8;
+                print_db(db_head);
+            } else if (strncmp(query_command, "print_var", 9) == 0) {
+                query_command += 9;
+                print_var(var_pool, query_command);
+            } else {
+                dbo->type = NA;
+                if (dbo->type == NA) {
+                    printf("No valid command entered!\n");
                     return dbo;
-                }
-                else 
-                {
-                    int_list* result = malloc(sizeof(int_list));
-                    result->next = NULL;
-                    result->item = find_sum(query_command, db_head, var_pool);
-                    declare_handle(handle, result, var_pool);
-                    printf("SUM is %i\n", result->item);
                 };
-            };
-            if (strncmp(query_command, "avg", 3) == 0) 
-            {
-                query_command += 4;
-                char* close_pren = strchr(query_command, ')');
-                if (close_pren == NULL) 
-                {
-                    printf("Improper format for avg command\n");
-                    dbo->type = NA;
-                    return dbo;
-                }
-                else 
-                {
-                    int_list* result = malloc(sizeof(int_list));
-                    result->next = NULL;
-                    result->item = find_avg(query_command, db_head, var_pool);
-                    printf("AVG is %i\n", result->item);
-                    declare_handle(handle, result, var_pool);
-                };
-            };
-            if (strncmp(query_command, "add", 3) == 0) 
-            {
-                printf("Requested add");
-                query_command += 4;
-                char* comma_pointer = strchr(query_command, ',');
-                if (comma_pointer == NULL) 
-                {
-                    printf("Improper format for vector add command\n");
-                    dbo->type = NA;
-                    return dbo;
-                }
-                else 
-                {
-                    char* col2 = malloc(100);
-                    strcpy(col2, divide_comma(query_command));
-                    int_list* result = malloc(sizeof(int_list));
-                    result = find_add(query_command, col2, db_head, var_pool);
-                    declare_handle(handle, result, var_pool);
-                };
-            };
-            if (strncmp(query_command, "sub", 3) == 0) 
-            {
-                printf("Requested sub");
-                query_command += 4;
-                char* comma_pointer = strchr(query_command, ',');
-                if (comma_pointer == NULL) 
-                {
-                    printf("Improper format for vector add command\n");
-                    dbo->type = NA;
-                    return dbo;
-                }
-                else 
-                {
-                    char* col2 = malloc(100);
-                    strcpy(col2, divide_comma(query_command));
-                    int_list* result = malloc(sizeof(int_list));
-                    result = find_sub(query_command, col2, db_head, var_pool);
-                    declare_handle(handle, result, var_pool);
-                };
-            };
-        };
-    };
+            }
+        }
+    //dbo->client_fd = client_socket;
+    //dbo->context = context;
+    //return dbo;
 };
-}

@@ -33,7 +33,6 @@ char* trim_newline(char *str) {
 
 char* divide_period(char *str) {
     int length = strlen(str);
-    int current = 0;
     for (int i = 0; i < length; ++i) {
         if (str[i] == '.') 
         {
@@ -41,11 +40,11 @@ char* divide_period(char *str) {
             return &str[i+1];
         }
     }
+    return NULL;
 }
 
 char* divide_comma(char *str) {
     int length = strlen(str);
-    int current = 0;
     for (int i = 0; i < length; ++i) {
         if (str[i] == ',') 
         {
@@ -53,6 +52,7 @@ char* divide_comma(char *str) {
             return &str[i+1];
         }
     }
+    return NULL;
 }
 
 /* removes space characters from the input string.
