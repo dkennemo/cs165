@@ -1546,7 +1546,7 @@ DbOperator* parse_command(char* query_command, message* send_message, int client
             {
                 query_command += 4;
                 printf("min query command is now: %s\n", query_command);
-                char* comma_pointer = strchr(query_command, ",");
+                char* comma_pointer = strchr(query_command, ',');
                 if (comma_pointer == NULL) 
                 {
                     printf("no comma detected\n");
