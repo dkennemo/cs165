@@ -1,0 +1,4 @@
+create(db,db1)
+create(tbl,tbl1.csv,db1,1)
+create(col,col1.db1.tbl1)
+load(/home/dkennemo/Downloads/cs165-2018-base-master/src/col1)
