@@ -15,20 +15,13 @@
 Db* lookup_db(char *name, struct Db *head_db) {
 
 // Find the database
-
-
 	Db* temp = head_db;					// current_db has to be the head of the list of databases.
 	Db* result = malloc(sizeof(Db*));	// allocate a result db pointer
-	char* db_name = malloc(64);			// allocate 64 bytes for a db_name
-//	*(result->name) = db_name;
+	char* db_name = malloc(100);		// allocate 100 bytes for a db_name
 	*result->name = db_name;
 	result = NULL;
 	int a = 1;
-	while (a != 0)
-//	while (a != 0 && temp->empty_flag != 1)
-	{
-		//printf("comparing %s and %s\n", temp->name, name);
-		//fflush(stdout);
+	while (a != 0) {
 		a = strcmp(temp->name, name);
 		if (a == 0) 
 			result = temp;
@@ -37,23 +30,15 @@ Db* lookup_db(char *name, struct Db *head_db) {
 		if (temp->next_db == 0)
 			break;
 		else
-		{
-			//printf("headed to next one, %s\n", temp->next_db->name);
 			temp = temp->next_db;
-		};
 	}; 
 
 // Return error if not found
-
 	if (a != 0) {
-		//printf("Could not find database after checking them all\n");
-		//free (temp);
 		free (result);
 		return NULL;
 	}
 	else {
-		//printf("Found database %s!\n", result->name);
-		// free (temp);
 		strcpy(db_name, name);
 		return result;
 	}
@@ -63,98 +48,54 @@ Table* lookup_table(char *name, struct Db *db) {
 
 // Find the table in the indicated db
 
-	//printf("looking in tables for table %s\n", name);
+	// If no table exists in the present db, initialize one with the provided name and return.
 	if(db->tables == NULL) {
-		//printf("there are no tables in this db yet\n");
-		return NULL;
+		Table* new_table = malloc(sizeof(Table));
+		strcpy(new_table->name, name);
+		new_table->columns = NULL;
+		db->tables = new_table;
+		return new_table;
 	};
-	Table* temp = malloc(sizeof(Table));
-	temp = db->tables;
-	Table* result = NULL;
 
-	int a = 1;
-	while (a != 0 && temp->empty_flag != 1)
+	// If there are tables, begin a search starting with the first table in the db
+	Table* temp = db->tables;
+
+	while (temp != NULL)
 	{
-		printf("comparing %s and %s\n", temp->name, name);
-		fflush(stdout);
-		a = strcmp(temp->name, name);
-		if (a == 0)
-			result = temp;
+		// compare search table with table name in temp
+		printf("comparing %s and %s ... ", temp->name, name);
+		// if it matches, the table sought has been found.
+		if (strcmp(temp->name, name) == 0)
+			return temp;
 		else
-			printf("this doesn't match...\n");
-		if (temp->next_tbl == 0)
-			break;
-		else
-		{
-			//printf("headed to next one, %p\n", (void*)temp->next_tbl);
-			temp = temp->next_tbl;
-		};
+			printf("not a match...\n");
+		temp = temp->next_tbl;
 	};
-
-	if (a != 0) {
-		//printf("Could not find tables in db after checking them all\n");
-		fflush(stdout);
-		free (result);
-		return NULL;
-	}
-	else {
-		//printf("Found table %s!\n", result->name);
-		//fflush(stdout);
-		//*found = TRUE;
-		//free (temp);
-		return result;
-	}
+	printf("Could not find table %s in db after checking them all\n", name);
+	return NULL;
 }
 
 Column* lookup_column(char *name, struct Table* table) {
 
-// Find the table in the indicated db
-
+	// Locate the first column in a given table
 	Column* temp = table->columns;
-	//printf("lookup_column received parameters name = %s and table name = %s\n", name, table->name);
-	int a = 1;
-	//printf("comparing column names %s and %s, strlen: ", temp->name, name);
-	//printf("%li %li\n", strlen(temp->name), strlen(name));
-	name = trim_whitespace(name);
-	a = strcmp(temp->name, name);
-	//printf("%i\n",a);
-	while (a != 0 && temp->next_col != NULL) {
-		//printf("didn't fine a match and there's another col to search, so traversing...\n");
-		temp = temp->next_col;
-		a = strcmp(temp->name, name);
-	};
-// Return error if not found
+	Column* prev;
 
-	if (a != 0) {
-		//printf("Could not find column in table after checking them all\n");
-		return NULL;
-	}
-	else
-	{
-		//printf("Found the column - here's it's contents:\n");
-		int_list* start = temp->data;
-		//printf("%s column name and %p is int_list start\n", temp->name, start);
-		if (temp->data == NULL)
-		{
-			printf("col is empty - nothing to display\n");
-		}
-		else
-		{
-			do {
-				//printf("looping thru int_list of %i items...", start->count);
-				//for (unsigned int x = 0; x < start->count; x++) {
-				//	printf("%i ",start->item[x]);
-				//};
-				//printf("ok, loop's done...\n");
-				if (start->next == NULL)
-					break;
-				else
-					start = start->next;
-				}
-			while (start != NULL);
-			//printf("\nEnd of the list!\n");
-		}
-		return temp;
-	}
+	name = trim_whitespace(name);
+	while (temp) {
+		if (strcmp(temp->name, name) == 0)
+			return temp;
+		prev = temp;
+		temp = temp->next_col;
+	};
+	// if exiting the while loop, the column must not have been found, so return null.
+
+	Column* new_column = malloc(sizeof(Column));
+	strcpy(new_column->name, name);
+	prev->next_col = new_column;
+	int_list* new_list = malloc(sizeof(int_list));
+	new_column->data = new_list;
+
+	return new_column;
 }
 
