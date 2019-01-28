@@ -691,7 +691,7 @@ DbOperator* load_db(char* dbFile, Db* db_head, Var* var_pool, int client_socket,
 
     // PARSING SECTION
 
-    // skip prens
+    // skip prens and quotes
     if (dbFile[0] == '(')
         dbFile++;
     int last_char = strlen(dbFile);
@@ -703,8 +703,6 @@ DbOperator* load_db(char* dbFile, Db* db_head, Var* var_pool, int client_socket,
     // open the file for reading and writing
     FILE* database = fopen(dbFile, "r");
     if (database == NULL) {
-        //int errnum = errno;
-        //printf(stderr, "Error opening file: %s\n", strerror(errnum));
         return NULL;
     };
 
@@ -719,7 +717,7 @@ DbOperator* load_db(char* dbFile, Db* db_head, Var* var_pool, int client_socket,
 
     if (strncmp(filetype, "dsl", 3) == 0)
     {
-        //DbOperator* x;
+    // repeatedly scan and execute until the end of file is reached.
         if (!feof(database)) do
         {
             fgets(query_command, 100, database);
@@ -728,10 +726,12 @@ DbOperator* load_db(char* dbFile, Db* db_head, Var* var_pool, int client_socket,
         while (!feof(database));
     };
 
-    // Is it csv?
+    // Is it csv? If so ...
     if (strncmp(filetype, "csv", 3) == 0)
     {
-        
+    // The first line of the file defines the db name / tables / columns, and it's important to know
+    // these because the data on each line is shipped to different columns when there's more than one
+    // db/tbl/col triptych listed.
         DbTblCol* roster = malloc(sizeof(DbTblCol));
         roster->items = malloc(sizeof(int_list*));
         // 1/26 11:41 roster->items = NULL;
@@ -740,10 +740,13 @@ DbOperator* load_db(char* dbFile, Db* db_head, Var* var_pool, int client_socket,
         fgets(query_command, 100, database);
         printf("read first line: %s\n", query_command);
         while (!end_of_line) {
+            // text before the first period is the db name...
             linecounter = strchr(query_command, '.');
             *linecounter = '\0';
             strcpy(roster->db_name, query_command);
             printf("db name is %s  ", roster->db_name);
+
+            // text before the next period is the tbl name...
             query_command = linecounter + 1;
             linecounter = strchr(query_command, '.');
             start_counter = query_command;
@@ -751,13 +754,18 @@ DbOperator* load_db(char* dbFile, Db* db_head, Var* var_pool, int client_socket,
             query_command = (linecounter + 1);
             strcpy(roster->tbl_name, start_counter);
             printf("table name is %s  ", roster->tbl_name);
+
+            // text before the comma is the col name...
             linecounter = strchr(query_command, ',');
             col_name[strlen(col_name)] = '\0';
+
+            // ... but there may not BE a comma, if it's the last one in the line.
             if (linecounter == NULL)
             {
                 strcpy(roster->col_name, query_command);
                 printf("col name is %s\n", roster->col_name);
-                end_of_line = 1;                    // signals this is the last item in the line to process.
+                // ends the while by signaling the last item in the line to process.
+                end_of_line = 1;      
                 roster->next = NULL;
             }
             else {
@@ -765,21 +773,30 @@ DbOperator* load_db(char* dbFile, Db* db_head, Var* var_pool, int client_socket,
                 query_command = trim_whitespace(query_command);
                 strcpy(roster->col_name, query_command);
                 printf("col name is %s\n", roster->col_name);
+                // since there's a comma, there's going to need to be a new roster item, so
+                // the following lines create and link it.
                 query_command = linecounter + 1;
                 DbTblCol* new_roster = malloc(sizeof(DbTblCol));
                 roster->next = new_roster;
                 roster = new_roster;
             };
         };
-        roster = roster_start;                                      // reset roster back to beginning of roster list
+        // we don't want to lose the roster, so we reset the pointer to the backup copy, roster_start.
+        roster = roster_start;
+
+        // Now that the list of db/tbl/cols is done, we set up the columns so we can populate.
+        // And the first step to doing that is: find the pointer to the table where they are supposed
+        // to be housed.
         Table *insert_table = malloc(sizeof(Table*));               // create an insert table pointer object
         printf("looking for table %s\n", roster->tbl_name);
         insert_table = lookup_table(roster->tbl_name, db_head);     // look up the table name in the roster
         printf("table pointer = %p\n", insert_table);
+        // Q: Check - does the call to lookup_table CREATE the table if it doesn't exist?
+
         if (insert_table->columns == NULL) {
             Column* new_column = malloc(sizeof(Column));
             insert_table->columns = new_column;
-//      };
+        };
 
         query_command = query_command_backup;                        // point the query command pointer to the original (since it's moved during the line scan process)
         int insert_val;                                             // this is the integer representation of the numbers read off the csv file
