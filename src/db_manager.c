@@ -9,28 +9,12 @@
 #include <limits.h>
 
 //#define PRIME 100151
+//Using lower prime number to test case of multiple hash collisions --
 #define PRIME 29
 #define DELETE_VALUE -2147483647
+#define SIZE_INT_LIST 1018
 
-// In this class, there will always be only one active database at a time
-// NOTE: Per SI, this is not the case for 2018; more than one database may be
-// open at a time.
 Db *current_db;
-
-// Revisit what amounts below will result in quality cache utilization.
-/*
-static unsigned int C0_SIZE = 512;     								// number of k-v pairs in the C0 buffer.
-static unsigned int NODE_SIZE = 256;   								// number of k-v pairs in a node.
-static unsigned int FAN_OUT = 100;     								// Fan out parameter. Each level l has Fan_Out ^ l nodes.
-static unsigned int MAX_LEVELS = 15;   								// Maximum disk-based levels of the LSM tree.
-static int deleted_count = 0;          								// added for testing - remove later.
-static int bloom_filters_activated, fence_pointers_activated;
-*/
-
-/* 
- * Here you will create a table object. The Status object can be used to return
- * to the caller that there was an error in table creation
- */
 
 int pow_wow(int base, int exp)
 {
@@ -52,13 +36,13 @@ int pow_wow(int base, int exp)
 void btree_get(node* rootnode, int item_to_get) {
 
 	//int found_flag = 0, y = 0;
-	int y = 0;
+	unsigned int y = 0;
 	node* activenode = rootnode;
 	while (!activenode->leaf_flag) {
-		for (int x = 0; x < 509; x++)
+		for (unsigned int x = 0; x < SIZE_INT_LIST / 2; x++)
 			if (item_to_get < *activenode->max_array[x])
 				activenode = activenode->node_array[x];
-		for (y = 0; y < 1018; y++)
+		for (y = 0; y < SIZE_INT_LIST; y++)
 			if (*activenode->max_array[y] == item_to_get)
 				printf("Found data! %li\n", activenode->max_array[y]);
 		};
@@ -70,16 +54,16 @@ void btree_put(node* rootnode, int item_to_add) {
 	int found_flag = 0;									// flag set to 1 when value being put in tree has found a home.
 	node* activenode = rootnode;
 	while (!activenode->leaf_flag) {
-		for (int x = 0; x < 509; x++) {
+		for (unsigned int x = 0; x < SIZE_INT_LIST; x++) {
 			if (item_to_add < *activenode->max_array[x])
 				activenode = activenode->node_array[x];
 		};
 	};
-	if (activenode->count + 1 > 509) {
+	if (activenode->count + 1 > (SIZE_INT_LIST / 2)) {
 		// make a new node
 		node* new_node = malloc(sizeof(node));
 		// copy half of the current node into the new node
-		for (int y = 255; y < 509; y++) {
+		for (unsigned int y = 255; y < (SIZE_INT_LIST / 2); y++) {
 			new_node->max_array[y - 255] = activenode->max_array[y];
 			new_node->node_array[y - 255] = activenode->node_array[y];
 			activenode->max_array[y] = 0;
@@ -99,26 +83,12 @@ void btree_put(node* rootnode, int item_to_add) {
 			};
 		};
 	};
-		// reconnect the parent node to include the child node
-		// meaning: all pointers to child nodes up through the previous node remain as is, then insert the new node,
-		// then include the rest of the nodes as pointers.
-
-		// what if the fan-out is such that you run out of space?
-		// re-traverse the tree from head to the level just above
-
-		// This is a recursive problem so requires a resursive solution
-
-//	for (int y = 0; y < activenode->count; y++) {
-//		count++;
-//	};
-
-// ... a lot to write here. come back to it.		
 }
 
 node* initialize_btree(node* rootnode, node* reserve_node, fence_pointer* fence, int* occupancy_matrix_ptr) {
 
-static unsigned int NODE_SIZE = 509;   								// fence pointer / node pointers in a given node.
-static unsigned int FAN_OUT = 509;    								// Fan out parameter. Each level l has Fan_Out ^ l nodes.
+static unsigned int NODE_SIZE = SIZE_INT_LIST / 2;   								// fence pointer / node pointers in a given node.
+static unsigned int FAN_OUT = SIZE_INT_LIST / 2;    								// Fan out parameter. Each level l has Fan_Out ^ l nodes.
 //static unsigned int MAX_LEVELS = 5;   								// Maximum levels of b-tree.
 
 //unsigned long int occupancy_matrix_ptr = malloc(sizeof(unsigned long int) * MAX_LEVELS * 2);
@@ -159,18 +129,7 @@ static unsigned int FAN_OUT = 509;    								// Fan out parameter. Each level l
   };
   fence[0].location = rootnode;         // set up ref to array for new node
 
-// initialize bloom filter
-//
-//for (x = 0; x < (unsigned int)MAX_LEVELS; x++)
-//{
-//  bloom_filter[x].count = NODE_SIZE * pow(FAN_OUT, x);
-//  bloom_filter[x].element = malloc (ceil ( NODE_SIZE * pow(FAN_OUT, x) * sizeof(unsigned int) / 32 ) + 8); 
-//  if (bloom_filter[x].element != NULL)
-//    printf("Successfully allocated for bloom filter %i\n", x);// *F
-//};
-
- return rootnode;
-
+return rootnode;
 }
 
 void create_column(Table *table, char *name, Status *ret_status) {
@@ -186,25 +145,17 @@ void create_column(Table *table, char *name, Status *ret_status) {
 		if (strcmp(name, current_col->name) == 0)
 		{
 			printf("you already have a column named %s! try again.\n", name);
-			//ret_status->code = OK;
 			return;
 		}
 		else if (current_col->name[0] == '\0')
 		{
 			printf("adding column name %s\n", name);
 			strcpy(current_col->name, name);
-			//ret_status->code = OK;
 			return;
 		}
 		else
 		{
 			if (current_col->next_col == NULL) {
-		/*		Column* new_col = malloc(sizeof(Column));
-				current_col->next_col = new_col;
-				strcpy(new_col->name, name);
-				//current_col = new_col;
-				printf("made new col %s, dude\n", new_col->name);
-				return;  */
 				strcpy(current_col->name, name);
 				Column* new_col = malloc(sizeof(Column));
 				current_col->next_col = new_col;
@@ -213,11 +164,9 @@ void create_column(Table *table, char *name, Status *ret_status) {
 				//current_col = new_col;
 				printf("made new col %s, dude\n", new_col->name);
 				return;  
-
 			}
 			current_col = current_col->next_col;
 			printf("moving to next col on the list... (%s)\n", current_col->name);
-
 		}
 	}
 }
@@ -227,35 +176,25 @@ void declare_handle(char* name, int_list* result, Var *var_pool) {
 	Var* orig_start = var_pool;
 	Var* start = var_pool;
 
-	printf("printing ALL handles:\n");
-	while (orig_start) {
-		printf("%s, ", orig_start->var_name);
+	while (orig_start)
 		orig_start = orig_start->next;
-	};
 	orig_start = var_pool;
-
-
-	// NOTE: Code snippet before used to discourage the use of a pre-existing handle.
-	// Test04 suggests that's the wrong approach, so warning is omitted.
 
 	// traverse to end of var pool, make sure this var name hasn't been declared before.
 	while (start) {
 		if (strcmp(name, start->var_name) == 0) {
-			//printf("Var has already been taken - choose a different var\n");
 			start->var_store = result;
 			return;
 		}
 		else
 			start = start->next;
 	}
-	start = var_pool;			// *
+	start = var_pool;			// reset to beginning of variable pool
 
 	// create new Var object, populate with result.
 	Var* new_var = malloc(sizeof(Var));
 	strcpy(new_var->var_name, name);
-	printf("ADDING %s\n", new_var->var_name);
 	new_var->var_store = result;
-	printf("first item of result = %i\n", new_var->var_store->item[0]);
 	new_var->next = NULL;
 
 	// link up pre-existing list to new var object.
@@ -726,12 +665,11 @@ Column* target_column;
 printf("In select_row_batch fxn\n");
 printf("batch_working = %i", batch_working);
 while (batch_working != NULL) {
-	//printf("looping through initialization while loop...\n");
-// find the db, table and col for the batch select
+	// find the db, table and col for the batch select
 	Db* target_db = batch_working->db_name;
 	Table* target_table = lookup_table(batch_working->tbl_name, target_db);
 
-	//printf("looking for column %s in table %s\n", batch_working->col_name, target_table->name);
+	// look for column
 	Column* target_column = lookup_column(batch_working->col_name, target_table);
 	target_column_backup = target_column;
 	if (target_column == NULL)
