@@ -791,14 +791,18 @@ DbOperator* load_db(char* dbFile, Db* db_head, Var* var_pool, int client_socket,
         printf("looking for table %s\n", roster->tbl_name);
         insert_table = lookup_table(roster->tbl_name, db_head);     // look up the table name in the roster
         printf("table pointer = %p\n", insert_table);
-        // Q: Check - does the call to lookup_table CREATE the table if it doesn't exist?
+        // Q: Does the call to lookup_table CREATE the table if it doesn't exist?
+        // A: It does.
 
+        // Not sure this code is really helpful - it just creates a blank column but doesn't
+        // populate it - may be better to build a SET of columns or traverse looking for the right
+        // column and create the one requested if it's not there.
         if (insert_table->columns == NULL) {
             Column* new_column = malloc(sizeof(Column));
             insert_table->columns = new_column;
         };
 
-        query_command = query_command_backup;                        // point the query command pointer to the original (since it's moved during the line scan process)
+        query_command = query_command_backup;                       // point the query command pointer to the original (since it's moved during the line scan process)
         int insert_val;                                             // this is the integer representation of the numbers read off the csv file
 
         int_list* start = malloc(sizeof(int_list*));                                        // declare start pointer for int_list
@@ -825,28 +829,30 @@ DbOperator* load_db(char* dbFile, Db* db_head, Var* var_pool, int client_socket,
                     current = new_block;
                     current->count = 0;     
                     insert_column->data = current;
-                    //printf("initializing new int_list\n");          // initialize count with 0.
                 };
-
                 query_command[strcspn(query_command, ",")] = '\0';  // isolate next value to insert
                 insert_val = atoi(query_command);                       
                 printf("v: %i\n", insert_val);                          
 
                 printf("storing %i at int_list item #%i in %s\n", insert_val, current->count, insert_column->name);
                 current->item[current->count] = insert_val;                             // store the value
-                //printf("stored %i!\n", current->item[current->count]);
                 current->count++;
 
-
-                //printf("Testing index logic.\n");
                 // here is the index logic.
-                if (insert_column->btree == 0 && insert_column->index_present == 1) {   // sorted column index
-                    printf("initializing sorted column index\n");
-                    if (insert_column->index == NULL) {                 // create a new index object if currently
+
+                // Is there supposed to be a sorted column index here?
+                if (insert_column->btree == 0 && insert_column->index_present == 1) {   
+                    // create a new index object if currently there is none, initialize working variables
+                    int current_index_size, index_array_max_size;
+                    int* index_array;
+                    if (insert_column->index == NULL) {                 
                         printf("no pre-existing index object so creating\n");
-                        int index_array_max_size = 1000;
-                        int* index_array = malloc(sizeof(int)*index_array_max_size);
-                        int current_index_size = 0;
+                        // max size assumed to be 1000 to start off with.
+                        index_array_max_size = 1000;
+                        current_index_size = 0;
+                        index_array = malloc(sizeof(int)*index_array_max_size);
+                        insert_column->index = index_array;
+
                     };
                     index_array[current_index_size] = current_index_size++; // add one index item
                     if (current_index_size > index_array_max_size) {
