@@ -287,7 +287,7 @@ int find_sum(char* param1, Db* db_head, Var* var_pool) {
 			param1_list = param1_list->next; 
 		};
 	};
-	printf("SUM = %i\n", sum);
+	log_info("%i\n", sum);
 	return sum;
 }
 
@@ -315,7 +315,7 @@ int find_avg(char* param1, Db* db_head, Var* var_pool) {
 	};
 	double avg = sum / count;
 
-	printf("AVG = %lf.2\n", avg);
+	log_info("%lf.2\n", avg);
 	return (avg);
 }
 
@@ -342,7 +342,7 @@ else if (param1 != NULL && param2 == NULL) {
 		}
 		start = start->next;
 	};
-	printf("max value = %i\n", max);
+	log_info("%i\n", max);
 	return max;
 }
 else if (!param1_list && param2_list) {
@@ -554,7 +554,7 @@ void print_var(Var *var_pool, const char* create_arguments) {
 					{
 						//printf("number of results in this node = %i\n", results_to_print->count);
 						for (int x = 0; x < results_to_print->count; x++) 
-							printf("%i ", results_to_print->item[x]);
+							log_info("%i\n", results_to_print->item[x]);
 						results_to_print = results_to_print->next;
 					};
 					printf("\n");
@@ -703,7 +703,7 @@ batch_working = batch_start;
 			if (target_column->data->item[x] >= batch_working->low && target_column->data->item[x] < batch_working->high  &&
 				target_column->data->item[x] != DELETE_VALUE) // if contents of tgt col reserve->data is in the range...
 			{
-				printf("%i ", target_column->data->item[x]);
+				log_info("%i\n", target_column->data->item[x]);
 				if (batch_working->items->count == 1018) {										// if full...
 					int_list* new_selected_items = malloc(sizeof(int_list));
 					new_selected_items->count = 0;

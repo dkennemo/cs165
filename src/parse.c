@@ -1511,7 +1511,7 @@ DbOperator* parse_command(char* query_command, message* send_message, int client
                     result->item[0] = find_min(query_command, comma_pointer + 1, db_head, var_pool);
                     result->count = 1;
                     declare_handle(handle, result, var_pool);
-                    printf("min is %i\n", result->item[0]);
+                    log_info("%i\n", result->item[0]);
                 };
             }; 
             if (strncmp(query_command, "max", 3) == 0) 
@@ -1549,7 +1549,7 @@ DbOperator* parse_command(char* query_command, message* send_message, int client
                     result->item[0] = find_max(query_command, comma_pointer + 1, db_head, var_pool);
                     result->count = 1;
                     declare_handle(handle, result, var_pool);
-                    printf("MAX is %i\n", result->item[0]);
+                    log_info("%i\n", result->item[0]);
                 };
             };
             if (strncmp(query_command, "sum", 3) == 0) 
@@ -1569,7 +1569,7 @@ DbOperator* parse_command(char* query_command, message* send_message, int client
                     result->item[0] = find_sum(query_command, db_head, var_pool);
                     result->count = 1;
                     declare_handle(handle, result, var_pool);
-                    printf("SUM is %i\n", result->item[0]);
+                    log_info("%i\n", result->item[0]);
                 };
             };
             if (strncmp(query_command, "avg", 3) == 0) 
