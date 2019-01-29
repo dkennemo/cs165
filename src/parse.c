@@ -277,7 +277,7 @@ void shutdown(Db* db_head) {
                             strcat(col_name, current_col->name);
                             strcat(col_name, ".csv");
                             FILE* column_file = fopen(col_name, "w");
-                            printf("    Column %s (%i) addr: %p:\n", current_col->name, col_number++, (void*)current_col);
+                            printf("    Column %s (%i)\n", current_col->name, col_number++);
                             buffer[0] = '\0';
                             strcat(buffer, "create(col,");
                             strcat(buffer, current_col->name);
@@ -545,16 +545,16 @@ message_status parse_create(char* create_arguments, Db* db_head, Var* var_pool) 
         } else {
             // pass off to next parse function. 
             if (strcmp(token, "db") == 0) {
-                printf("Been asked to create a db\n");
+                //printf("Been asked to create a db\n");
                 mes_status = parse_create_db(tokenizer_copy, db_head, var_pool);
             } else if (strcmp(token, "tbl") == 0) {
-                printf("Been asked to create a tbl\n");
+                //printf("Been asked to create a tbl\n");
                 mes_status = parse_create_tbl(tokenizer_copy, db_head);
             } else if (strcmp(token, "idx") == 0) {
-                printf("Been asked to create an index\n");
+                //printf("Been asked to create an index\n");
                 mes_status = parse_create_idx(tokenizer_copy, db_head);
             } else if (strcmp(token, "col") == 0) {
-                printf("Been asked to create a col\n");
+                //printf("Been asked to create a col\n");
                 mes_status = parse_create_col(tokenizer_copy, db_head);
             } else {
                 mes_status = UNKNOWN_COMMAND;
@@ -743,11 +743,10 @@ DbOperator* load_db(char* dbFile, Db* db_head, Var* var_pool, int client_socket,
                 int current_index_size, index_array_max_size;
                 int* index_array;
 
-                // Is there supposed to be a sorted column index here?
                 if (insert_column->btree == 0 && insert_column->index_present == 1) {   
                     // create a new index object if currently there is none, initialize working variables
                     if (insert_column->index == NULL) {                 
-                        printf("no pre-existing index object so creating\n");
+                        //printf("no pre-existing index object so creating\n");
                         // max size assumed to be 1000 to start off with.
                         index_array_max_size = 1000;
                         current_index_size = 0;
@@ -758,15 +757,15 @@ DbOperator* load_db(char* dbFile, Db* db_head, Var* var_pool, int client_socket,
                     index_array[current_index_size] = current_index_size++; // add one index item
                     // if index size exceeds capacity, realloc times two.
                     if (current_index_size > index_array_max_size) {
-                        printf("expanding index size from %i to %i\n", index_array_max_size, index_array_max_size*2);
+                        //printf("expanding index size from %i to %i\n", index_array_max_size, index_array_max_size*2);
                         index_array_max_size *= 2;
                         index_array = realloc(index_array,index_array_max_size * sizeof(int));
                     };
                 }
                 else if (insert_column->btree == 1 && insert_column->index_present == 1) {
-                    printf("initializing btree index");
+                    //printf("initializing btree index");
                     if (insert_column->index == NULL) {
-                        printf("no pre-existing btree object so creating\n");
+                        //printf("no pre-existing btree object so creating\n");
                         node* rootnode = malloc(sizeof(node));
                         node* reserve_node = malloc(sizeof(node));
                         fence_pointer* fence = malloc(sizeof(fence_pointer));
@@ -788,11 +787,13 @@ DbOperator* load_db(char* dbFile, Db* db_head, Var* var_pool, int client_socket,
                 if (roster->next) {
                     roster = roster->next;
                     insert_column = lookup_column(roster->col_name, insert_table);
+                    //printf("looking up column %s\n", insert_column);
                     current = insert_column->data;
                 }
                 else {
                     roster = roster_start;
                     insert_column = lookup_column(roster->col_name, insert_table);
+                    //printf("looking up column %s\n", insert_column);
                     current = insert_column->data;
                 };
             } while (strcspn(query_command, ",") != 0);
@@ -812,8 +813,8 @@ DbOperator* load_db(char* dbFile, Db* db_head, Var* var_pool, int client_socket,
             insert_column->index_present == 1 //&& insert_column->clustered == 1
             ) {
             // load entire column into array
-            printf("sorting column to create index.\n");
-            printf("loading it into an array --\n");
+            //printf("sorting column to create index.\n");
+            //printf("loading it into an array --\n");
             total_item_count = 0;
             int_list* working_data = insert_column->data;
             while (working_data != NULL) {
@@ -836,9 +837,9 @@ DbOperator* load_db(char* dbFile, Db* db_head, Var* var_pool, int client_socket,
                 x_index += working_data->count;
                 working_data = working_data->next;
             };
-            printf("Here the total array: \n");
-            for (int y = 0; y < total_item_count; y++)
-                printf("%i : %i  ", y, total_column_array[y]);
+            //printf("Here the total array: \n");
+            //for (int y = 0; y < total_item_count; y++)
+            //    printf("%i : %i  ", y, total_column_array[y]);
 
             // send column and associated index into quicksort
             int min_item = 2147483647;
@@ -849,9 +850,9 @@ DbOperator* load_db(char* dbFile, Db* db_head, Var* var_pool, int client_socket,
             };
             printf("executing the quicksort...\n");
             quicksort(&total_column_array, &total_index_array, min_item, max_item);
-            printf("Here the total array: \n");
-            for (int y = 0; y < total_item_count; y++)
-                printf("%i : %i  ", y, total_column_array[y]);
+            //printf("Here the total array: \n");
+            //for (int y = 0; y < total_item_count; y++)
+            //    printf("%i : %i  ", y, total_column_array[y]);
 
                 // chop back up until int_lists
             int_list* new_block = malloc(sizeof(int_list));
@@ -873,22 +874,31 @@ DbOperator* load_db(char* dbFile, Db* db_head, Var* var_pool, int client_socket,
 
             // NOW SORT THE OTHER COLUMNS ACCORDING TO THE INDEX!
 
-            for (int y = 0; y < total_item_count; y++)
-                printf("%i ", total_index_array[y]);
-            printf("\n");
+            //for (int y = 0; y < total_item_count; y++)
+            //    printf("%i ", total_index_array[y]);
+            //printf("\n");
 
             Column* start_column = insert_column;
 
+            // loop through the columns...
             while (start_column != NULL) {
-                if (start_column->btree == 0 && start_column->index_present == 1 && insert_column->clustered == 1)
+
+                // skip over the column that IS the index, because that would just mess up the brand new order...
+                if (start_column->btree == 0 && start_column->index_present == 1 && insert_column->clustered == 1) {
+                    printf("skipping col %s\n", start_column->name);
                     start_column = start_column->next_col;
+                }
+
+                //if (start_column->btree == 0 && start_column->index_present == 1 && insert_column->clustered == 1)
+                //    start_column = start_column->next_col;
                 else {
                     // declare an array
                     int sorting_array[total_item_count];
-                    // place the contents of each column into the array and sort according to index
+                    
                     int_list* source_data = start_column->data;
                     int tuple = 0;
                     while (start_column != NULL) {
+                        // place the contents of each column into the array and sort according to index
                         while (source_data != NULL) {
                             for (int z = 0; z < source_data->count; z++)
                                 sorting_array[tuple++] = source_data->item[total_index_array[z]];
@@ -898,6 +908,7 @@ DbOperator* load_db(char* dbFile, Db* db_head, Var* var_pool, int client_socket,
                             for (int g = 0; g < total_item_count; g++)
                                 printf("%i ", sorting_array[g]);
                             printf("\n\n");
+                            // Now put the re-ordered contents into int_lists...
                             if (start_column) {
                                 start_column->data->count = 0;
                                 for (int g = 0; g < total_item_count; g++) {
@@ -909,7 +920,9 @@ DbOperator* load_db(char* dbFile, Db* db_head, Var* var_pool, int client_socket,
                                     };
                                 };
                             };
+                            printf("\n\nmoving from %s ", start_column->name);
                             start_column = start_column->next_col;
+                            printf("%s", start_column->name);
 
                     };
 
@@ -1056,7 +1069,7 @@ int_list* parse_delete(char* query_command, char* handle, Db* db_head, Var* var_
         *period_pointer = '\0';
         query_command = ++period_pointer;
     };
-    printf("tracking down db: %s\n", db_name);
+    //printf("tracking down db: %s\n", db_name);
     period_pointer = strchr(query_command, '.');
     char* table_name = query_command;
     if (period_pointer != NULL) 
@@ -1064,7 +1077,7 @@ int_list* parse_delete(char* query_command, char* handle, Db* db_head, Var* var_
         *period_pointer = '\0';
         query_command = ++period_pointer;
     };
-    printf("tracking down table: %s\n", table_name);
+    //printf("tracking down table: %s\n", table_name);
     comma_pointer = strchr(query_command, ',');
     if (comma_pointer != NULL) 
     {
@@ -1078,7 +1091,7 @@ int_list* parse_delete(char* query_command, char* handle, Db* db_head, Var* var_
         *comma_pointer = '\0';
         query_command = ++comma_pointer;
     };
-    printf("variable name for delete indexes = %s\n", var_name);
+    //printf("variable name for delete indexes = %s\n", var_name);
     pren_pointer = strchr(query_command, ')');
     int_list* deleted = delete_row(db_name, db_head, table_name, var_name, var_pool);
     return deleted;
@@ -1094,7 +1107,7 @@ int_list* parse_fetch(char* query_command, char* handle, Db* db_head, Var* var_p
         *period_pointer = '\0';
         query_command = ++period_pointer;
     };
-    printf("tracking down db: %s\n", db_name);
+    //printf("tracking down db: %s\n", db_name);
     period_pointer = strchr(query_command, '.');
     char* table_name = query_command;
     if (period_pointer != NULL) 
@@ -1102,7 +1115,7 @@ int_list* parse_fetch(char* query_command, char* handle, Db* db_head, Var* var_p
         *period_pointer = '\0';
         query_command = ++period_pointer;
     };
-    printf("tracking down table: %s\n", table_name);
+    //printf("tracking down table: %s\n", table_name);
     comma_pointer = strchr(query_command, ',');
     char* column_name = query_command;
     if (comma_pointer != NULL) 
@@ -1117,9 +1130,9 @@ int_list* parse_fetch(char* query_command, char* handle, Db* db_head, Var* var_p
         *comma_pointer = '\0';
         query_command = ++comma_pointer;
     };
-    printf("variable name for fetch indexes = %s\n", var_name);
+    //printf("variable name for fetch indexes = %s\n", var_name);
     pren_pointer = strchr(query_command, ')');
-    printf("Assigning to handle: %s\n", handle);
+    //printf("Assigning to handle: %s\n", handle);
     int_list* fetch_list = fetch_row(db_name, table_name, column_name, var_name, db_head, handle, var_pool);
     return fetch_list;
 }
@@ -1355,7 +1368,7 @@ DbOperator* parse_command(char* query_command, message* send_message, int client
     {
         // handle exists, store here. 
         *equals_pointer = '\0';
-        cs165_log(stdout, "FILE HANDLE: %s\n", handle);
+        //cs165_log(stdout, "FILE HANDLE: %s\n", handle);
         query_command = ++equals_pointer;
 
     } 
@@ -1541,11 +1554,11 @@ DbOperator* parse_command(char* query_command, message* send_message, int client
                     char* close_pren = strchr(query_command, ")");
                     if (close_pren == NULL) 
                     {
-                        printf("No close pren - Improper format for min command\n");
+                        //printf("No close pren - Improper format for min command\n");
                         dbo->type = NA;
                         return dbo;
                     };
-                    printf("now analyzing min\n");
+                    //printf("now analyzing min\n");
                     int_list* result = malloc(sizeof(int_list));
                     result->item[0] = find_min(query_command, comma_pointer + 1, db_head, var_pool);
                     result->count = 1;
@@ -1562,7 +1575,7 @@ DbOperator* parse_command(char* query_command, message* send_message, int client
                     char* close_pren = strchr(query_command, ')');
                     if (close_pren == NULL) 
                     {
-                        printf("Improper format for max command\n");
+                        //printf("Improper format for max command\n");
                         dbo->type = NA;
                         return dbo;
                     }
@@ -1580,7 +1593,7 @@ DbOperator* parse_command(char* query_command, message* send_message, int client
                     char* close_pren = strchr(query_command, ')');
                     if (close_pren == NULL) 
                     {
-                        printf("Improper format for max command\n");
+                        //printf("Improper format for max command\n");
                         dbo->type = NA;
                         return dbo;
                     };
@@ -1597,7 +1610,7 @@ DbOperator* parse_command(char* query_command, message* send_message, int client
                 char* close_pren = strchr(query_command, ')');
                 if (close_pren == NULL) 
                 {
-                    printf("Improper format for sum command\n");
+                    //printf("Improper format for sum command\n");
                     dbo->type = NA;
                     return dbo;
                 }

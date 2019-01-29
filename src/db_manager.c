@@ -213,7 +213,7 @@ int_list* interpret_col_or_var (char* param1, Var* var_pool, Db* db_head) {
 	char* s = strchr(param1, ')');
 	if (s)
 		*s = '\0';
-	printf("interpreting %s\n", param1);
+	//printf("interpreting %s\n", param1);
 	char* tbl_name = malloc(100);
 	char* db_name = malloc(100);
 	char* col_name = malloc(100);
@@ -230,7 +230,7 @@ int_list* interpret_col_or_var (char* param1, Var* var_pool, Db* db_head) {
 			if (current->next)
 				current = current->next;
 			else {
-				printf("couldn't find var in list\n");
+				//printf("couldn't find var in list\n");
 				return NULL; 
 			};
 		};
@@ -248,18 +248,18 @@ int_list* interpret_col_or_var (char* param1, Var* var_pool, Db* db_head) {
 
 		s = strchr(tbl_name, '.');
 		*s = '\0';
-		printf("tbl name = %s\n", tbl_name);
+		//printf("tbl name = %s\n", tbl_name);
 
 
 		Db* db_search = lookup_db(db_name, db_head);
 		Table* tbl_search = lookup_table(tbl_name, db_search);
 		Column* col_search = lookup_column(col_name, tbl_search);
 		if (col_search == NULL) {
-			printf("Error in tracking down %s.%s.%s\n", db_name, tbl_name, col_name);
+			//printf("Error in tracking down %s.%s.%s\n", db_name, tbl_name, col_name);
 			return NULL;
 		}
 		else {
-			printf("Found column %s\n", col_name);
+			//printf("Found column %s\n", col_name);
 			return col_search->data;
 		};
 	};
@@ -273,11 +273,11 @@ int find_sum(char* param1, Db* db_head, Var* var_pool) {
 
 	param1_list = interpret_col_or_var(param1, var_pool, db_head);
 	if (param1_list == NULL) {
-		printf("list is empty\n");
+		//printf("list is empty\n");
 		return 0;
 	}
 	else {
-		printf("Summing %s\n", param1);
+		//printf("Summing %s\n", param1);
 		while (param1_list) {
 			for (unsigned int x = 0; x < param1_list->count; x++)
 				sum += param1_list->item[x];
@@ -300,7 +300,7 @@ int find_avg(char* param1, Db* db_head, Var* var_pool) {
 		return 0;
 	}
 	else {
-		printf("Averaging %s\n", param1);
+		//printf("Averaging %s\n", param1);
 		while (param1_list) {
 			for (unsigned int x = 0; x < param1_list->count; x++) {
 				sum += param1_list->item[x];
@@ -506,7 +506,7 @@ return vector_backup;
 void print_var(Var *var_pool, const char* create_arguments, int client_socket) {
 
 	//printf("var pool = %p", var_pool);
-	printf("args: %s\n", create_arguments);
+	//printf("args: %s\n", create_arguments);
     message_status mes_status;
     char *tokenizer_copy, *to_free;
     // Since strsep destroys input, we create a copy of our input. 
@@ -527,7 +527,7 @@ void print_var(Var *var_pool, const char* create_arguments, int client_socket) {
    		}
 	    else	
 	       	token[last_char] = '\0'; */
- 	    printf("variable name = %s\n", token);
+ 	    //printf("variable name = %s\n", token);
     	//}// 
 
 		Var* start = var_pool;
@@ -590,7 +590,7 @@ int index_node = 0;
 Db* target_db = lookup_db(db_name, db_head);
 int found_var_name = 0;
 Table* target_table = lookup_table(table_name, target_db);
-printf("looking for column %s in table %s\n", column_name, target_table->name);
+//printf("looking for column %s in table %s\n", column_name, target_table->name);
 Column* target_column = lookup_column(column_name, target_table);
 if (target_column == NULL)
 {
@@ -613,7 +613,7 @@ if (start == NULL)
 else do
 {
 	if (strcmp(start->var_name, var_name) == 0) {
-		printf("setting up int_list to point to the var_store\n");
+		//printf("setting up int_list to point to the var_store\n");
 		items_to_fetch = start->var_store;
 		items_to_fetch_working = items_to_fetch;
 	};
@@ -625,7 +625,7 @@ int find_item = 0;
 while (items_to_fetch_working != NULL) {
 	for (unsigned int x = 0; x < items_to_fetch_working->count; x++) {
 		find_item = items_to_fetch_working->item[x];
-		printf("The current page ends at item # %i\n", (items_to_fetch_from->count + index_node));
+		//printf("The current page ends at item # %i\n", (items_to_fetch_from->count + index_node));
 		while ((items_to_fetch_from->count + index_node) < find_item) {
 			index_node += items_to_fetch_from->count;
 			items_to_fetch_from = items_to_fetch_from->next;
@@ -724,15 +724,15 @@ Db* target_db = lookup_db(db_name, head_db);
 int found_var_name = 0;
 Table* target_table = lookup_table(table_name, target_db);
 
-printf("looking for column %s in table %s\n", column_name, table_name);
+//printf("looking for column %s in table %s\n", column_name, table_name);
 Column* target_column = lookup_column(column_name, target_table);
 if (target_column == NULL)
 {
-	printf("Couldn't find the specified column in the db/table combo. Can't execute select.\n");
+	//printf("Couldn't find the specified column in the db/table combo. Can't execute select.\n");
 	return NULL;
 };
 
-printf("Assigning to %s\n", var_name);
+//printf("Assigning to %s\n", var_name);
 
 Column* target_column_backup = target_column;
 int_list* data_backup = target_column->data;
@@ -825,7 +825,7 @@ void create_table(Db* db_current, char* name, int num_columns, Status *ret_statu
 			new_table->col_count = num_columns;		// initialize other variables to indicate a totally empty db with
 			new_table->next_tbl = NULL;
 			new_table->table_length = 0;
-			printf("table name is %s\n", new_table->name);
+			//printf("table name is %s\n", new_table->name);
 			Column* current_col = malloc(sizeof(Column));
 			new_table->columns = current_col;
 			for (int x = 1; x < num_columns; x++) {
@@ -875,7 +875,7 @@ Db* create_db(const char* db_name, Db* db_head, Var* var_pool) {
 			new_db->tables_capacity = 0;
 			new_db->next_db = NULL;
 			new_db->empty_flag = 0;
-			printf("db name is %s\n", temp_db->name);
+			//printf("db name is %s\n", temp_db->name);
 			return new_db;
 		};
 	};
@@ -903,7 +903,7 @@ int_list* delete_row(const char* db_name, struct Db* db_head, const char* table_
 		// return null if column can't be found.
 
 		if (col == NULL) {
-			printf("Error in tracking down %s.%s\n", db_name, table_name);
+			//printf("Error in tracking down %s.%s\n", db_name, table_name);
 			return NULL;
 		}
 		else {
@@ -916,7 +916,7 @@ int_list* delete_row(const char* db_name, struct Db* db_head, const char* table_
 				// if yes, this is dubbed the "delete_list"
 				if (strcmp(var_working->var_name, var_name) == 0) {
 					delete_list = var_working->var_store;
-					printf("created delete column from variable $s\n", var_working->var_name);
+					//printf("created delete column from variable $s\n", var_working->var_name);
 					break;
 				 }
 				// if not, traverse...
@@ -938,13 +938,13 @@ int_list* delete_row(const char* db_name, struct Db* db_head, const char* table_
 					int row_to_delete = var_store_working->item[x];
 					Column* temp_col = col;
 					// loop through the columns...
-					printf("Eliminating values\n");
+					//printf("Eliminating values\n");
 					while (temp_col)
 					{
-						printf("...from column %s\n", temp_col->name);
+						//printf("...from column %s\n", temp_col->name);
 					// in each iteration, find the data row and set to the presumptive deleted value
 						int_list* working_int_list = temp_col->data;
-						printf("item %i ", x);
+						//printf("item %i ", x);
 						temp_col->data->item[var_working->var_store->item[x]] = DELETE_VALUE;
 					// tee up the next column to repeat this for them all.
 						temp_col = temp_col->next_col;
@@ -988,7 +988,7 @@ int_list *values_2_working = values_2;
 
 if (join_type == 0) {					// 0 means used nested loop version of join algo
 
-printf("performing nested loop\n");
+//printf("performing nested loop\n");
 int index_x = 0;
 int index_y = 0;
 while (values_1_working != NULL) {
@@ -1000,8 +1000,8 @@ while (values_1_working != NULL) {
 			for (unsigned int y = 0; y < values_2_working->count; y++)
 				{
 				if (values_1_working->item[x] == values_2_working->item[y]) {
-					printf("item #s: x = %i & y = %i. Comparison: %i and %i\n",(index_x + x), (index_y + y),
-						values_1_working->item[x], values_2_working->item[y]);
+					//printf("item #s: x = %i & y = %i. Comparison: %i and %i\n",(index_x + x), (index_y + y),
+					//	values_1_working->item[x], values_2_working->item[y]);
 
 					var_1_working->item[var_1_working->count++] = positions_1_working->item[x];
 					// revisit how this will work when positions_1_working goes beyond the first node
@@ -1023,7 +1023,7 @@ declare_handle(r2_name, var_2_working, var_pool);
 }
 else if (join_type == 1) {
 
-printf("performing hash join\n");
+//printf("performing hash join\n");
 hash* hashtable = create_hash_table(values_1_working);
 int index_x = 0;
 int index_y = 0;
@@ -1062,7 +1062,7 @@ hash* create_hash_table (int_list *values) {
 
 	int int_hash;
 
-	printf("hashing %i values\n", values->count);
+	//printf("hashing %i values\n", values->count);
 	for (unsigned int x = 0; x < values->count; x++)
 	{
 		//printf("looking at item# %i", x);

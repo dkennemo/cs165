@@ -87,7 +87,7 @@ void handle_client(int client_socket, Db* db_head) {
 
             // 1. Parse command
             //    Query string is converted into a request for an database operator
-            log_info("at server level, batch = %p", batch);
+            // log_info("at server level, batch = %p", batch);
             parse_command(recv_message.payload, &send_message, client_socket, client_context, db_head, var_pool, batch_mode, batch);
 
             // 2. Handle request
