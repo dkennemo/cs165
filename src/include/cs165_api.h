@@ -327,7 +327,7 @@ message_status parse_lookup_tbl(char* tokenizer_copy, struct Db* db_head);
 
 void print_db(Db* db_head);
 
-void print_var(Var *var_pool, const char* var_name);
+void print_var(Var *var_pool, const char* var_name, int client_socket);
 
 int find_max(char* param1, char* param2, Db* db_head, Var *var_pool);
 

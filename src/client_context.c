@@ -25,8 +25,6 @@ Db* lookup_db(char *name, struct Db *head_db) {
 		a = strcmp(temp->name, name);
 		if (a == 0) 
 			result = temp;
-		else
-			printf("this doesn't match...\n");
 		if (temp->next_db == 0)
 			break;
 		else
@@ -63,15 +61,11 @@ Table* lookup_table(char *name, struct Db *db) {
 	while (temp != NULL)
 	{
 		// compare search table with table name in temp
-		printf("comparing %s and %s ... ", temp->name, name);
 		// if it matches, the table sought has been found.
 		if (strcmp(temp->name, name) == 0)
 			return temp;
-		else
-			printf("not a match...\n");
 		temp = temp->next_tbl;
 	};
-	printf("Could not find table %s in db after checking them all\n", name);
 	return NULL;
 }
 
