@@ -136,8 +136,9 @@ void create_column(Table *table, char *name, Status *ret_status) {
 	printf("CREATE COLUMN ROUTINE. \nsearching for the first empty column in %s (and also checking avail of name %s)\n", table->name, name);
 	Column* current_col = table->columns;
 	if (current_col == NULL) {
-		printf("hmm.. didn't initialize with any columns!\n");
-		//ret_status->code = OK;
+		Column* new_column = malloc(sizeof(Column));
+		strcpy(new_column->name, name);
+		table->columns = new_column;
 		return;
 	}
 	else while(1)
@@ -506,7 +507,7 @@ while (start1 && start2) {
 return vector_backup;
 }
 
-void print_var(Var *var_pool, const char* create_arguments) {
+void print_var(Var *var_pool, const char* create_arguments, int client_socket) {
 
 	//printf("var pool = %p", var_pool);
 	printf("args: %s\n", create_arguments);
@@ -542,6 +543,9 @@ void print_var(Var *var_pool, const char* create_arguments) {
 			printf("var pool is empty - nothing to print\n");
 		else do
 		{
+			message to_send;
+			char send_buffer[1024];
+			int length;
 			//printf("comparing %s %li %s %li\n", start->var_name, strlen(start->var_name), token, strlen(token));
 			if (strcmp(start->var_name, token) == 0) {
 				//printf("setting up int_list to point to the var_store\n");
@@ -553,8 +557,10 @@ void print_var(Var *var_pool, const char* create_arguments) {
 					while (results_to_print != NULL)
 					{
 						//printf("number of results in this node = %i\n", results_to_print->count);
-						for (int x = 0; x < results_to_print->count; x++) 
-							log_info("%i\n", results_to_print->item[x]);
+						char* result = malloc(100);
+						for (int x = 0; x < results_to_print->count; x++) {
+							printf("%i\n", results_to_print->item[x]);
+						}
 						results_to_print = results_to_print->next;
 					};
 					printf("\n");

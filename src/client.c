@@ -61,13 +61,6 @@ int connect_client() {
     return client_socket;
 }
 
-/**
- * Getting Started Hint:
- *      What kind of protocol or structure will you use to deliver your results from the server to the client?
- *      DK: The results are returned in text form and printed on the screen.
- *      What kind of protocol or structure will you use to interpret results for final display to the user?
- *      
-**/
 int main(void)
 {
     int client_socket = connect_client();
@@ -146,7 +139,6 @@ int main(void)
 		        }
                 exit(1);
             }
-        //printf("dk here4\n");
         }
     }
     close(client_socket);

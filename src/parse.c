@@ -699,9 +699,17 @@ DbOperator* load_db(char* dbFile, Db* db_head, Var* var_pool, int client_socket,
         // populate it - may be better to build a SET of columns or traverse looking for the right
         // column and create the one requested if it's not there.
         if (insert_table->columns == NULL) {
-            Column* new_column = malloc(sizeof(Column));
-            strcpy(new_column->name, roster->col_name);
-            insert_table->columns = new_column;
+            DbTblCol* roster_working = roster;
+            Table* insert_table_working = insert_table;
+            Column* first_column = NULL;
+            while (roster_working != NULL) {
+                Column* new_column = malloc(sizeof(Column));
+                if (first_column == NULL)
+                    first_column = new_column;
+                strcpy(new_column->name, roster->col_name);
+                roster_working = roster_working->next;
+            };
+            insert_table->columns = first_column;
         };
 
         query_command = query_command_backup;                       // point the query command pointer to the original (since it's moved during the line scan process)
@@ -965,7 +973,8 @@ DbOperator* parse_insert(char* query_command, message* send_message, Db* db_head
             if (start == NULL) {
                 int_list* new_int = malloc(sizeof(int_list));           // now create a new int_list object to store it in
                 new_int->count = 0;
-                start = new_int;
+                insert_column->data = new_int;
+                start = insert_column->data;
             }
             else while (start && start->count == SIZE_INT_LIST)
                 start = start->next;
@@ -977,15 +986,6 @@ DbOperator* parse_insert(char* query_command, message* send_message, Db* db_head
                 start = new_int;
 
             };
-//            if (insert_column->data == NULL)                        // is column data empty? If so, point it to the int_list just created
-//                insert_column->data = new_int;
-//            else {
-//                int_list* search_list = insert_column->data;
-//                while (search_list->next != NULL) {
-//                    search_list = search_list->next;
-//                }
-//                search_list->next = new_int;
-//            };
         insert_column = insert_column->next_col;
         };
     }
@@ -1366,7 +1366,7 @@ DbOperator* parse_command(char* query_command, message* send_message, int client
         if (strncmp(query_command, "print", 5) == 0) 
         {
             query_command += 5;
-            print_var(var_pool, query_command);
+            print_var(var_pool, query_command, client_socket);
         }; 
         if (strncmp(query_command, "batch_queries()", 15) == 0)
             {
